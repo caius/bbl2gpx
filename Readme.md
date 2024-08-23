@@ -4,30 +4,24 @@ BBL has a .gpx export feature, but ends up with just a list of waypoints contain
 
 This will generate a GPX from the voyage more akin to Navionics GPX export, with a track containing waypoints and timestamps.
 
-## Instructions to export whole profile
+## Instructions to export a single trip
 
-Login at https://blueboatlog.com/ and from the network tab grab the Authorization header value ("Bearer …") - we'll use this to authenticate to the API for feeds.
-
-Grab your feed of events into a temporary file
-
-```shell
-curl --header "Authorisation: Bearer …" "https://api.blueboatlog.com/v3/trip?limit=25&skip=0&sort=enddate&type=mineall" > tmp/feed.json
-```
-
-Then we can run the script against the feed to get things exported:
-
-```shell
-./bin/bbl-feed-to-gpx < tmp/feed.json
-```
-
-If you have the feed id for a single track to export, you can do that with the other script:
+Find the trip on the website and grab the id from the end of the URL, pass to the script as sole argument:
 
 ```shell
 ./bin/bbl-to-gpx ID
 ```
 
-All exported gpx will end up in the `exports` directory.
+## Instructions to export a whole profile of trips
 
-## Notes
+Find the profile of the user you want to export (if it's your profile, click "View My Public Profile" at the bottom of <https://blueboatlog.com/profile>). eg, <https://blueboatlog.com/user/616c7b54623ced5c16537e9c>
 
-<http://www.topografix.com/GPX/1/1/>
+Then we can run the script against the profile to export the data we want:
+
+```shell
+./bin/bbl-feed-to-gpx "https://blueboatlog.com/user/616c7b54623ced5c16537e9c"
+```
+
+All exported gpx will end up in the `exports/*.gpx` directory.
+
+The JSON data retrieved is stored in `exports/tmp/*.json` for debugging purposes, and so repeated runs don't re-fetch the same data.

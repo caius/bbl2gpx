@@ -1,17 +1,43 @@
-#!/usr/bin/env bash
+#!/usr/bin/env ruby
+# frozen_string_literal: true
 
-[[ "$TRACE" ]] && set -o xtrace
-set -o errexit
-set -o nounset
-set -o pipefail
-set -o noclobber
+require "json"
+require "net/http"
+require "pathname"
 
-if ! command -v jq >/dev/null 2>&1; then
-  echo "jq is not installed. Please install jq."
+user_url = ARGV.first
+unless user_url
+  puts "Error: Please provide a user URL"
   exit 1
-fi
+end
 
-while read -r id; do
-  echo "Processing ID: ${id}"
-  ./bin/bbl-to-gpx "${id}"
-done < <(jq -r '.[].id' < /dev/stdin)
+user_id = user_url.split("/").last
+
+# Make sure folder structure exists for us
+root_dir = Pathname.new(".").expand_path
+export_dir = root_dir.join("export")
+export_dir.mkpath
+
+export_tmp_dir = export_dir.join("tmp")
+export_tmp_dir.mkpath
+
+user_file = export_tmp_dir.join("user-#{user_id}.json")
+unless user_file.exist?
+  user_response = Net::HTTP.get_response(URI("https://api.blueboatlog.com/v3/trip/user/#{user_id}"))
+  unless user_response.is_a?(Net::HTTPSuccess)
+    puts "Failed to fetch profile data for id #{id}: #{user_response.code} #{user_response.message}"
+    exit 1
+  end
+
+  user_file.open("w+") do |f|
+    f.write user_response.body
+  end
+end
+
+user_data = JSON.load_file(user_file.to_s)
+
+user_data.each do |trip|
+  id = trip.fetch("id")
+  puts "Processing ID: #{id}"
+  system(root_dir.join("bin/bbl-to-gpx").to_s, id)
+end

@@ -93,7 +93,7 @@ filename = "%{date} - %{title} - %{id}.gpx" % {
   title: trip_data.fetch("title").downcase.gsub(/\W+/, "_").gsub(/_+/, "_")
 }
 
-export_file = export_dir.join(filename)
+export_file = export_dir.join("#{filename}.gpx")
 export_file.open("w+") do |f|
   f.write doc.to_xml
 end
