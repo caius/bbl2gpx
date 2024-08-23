@@ -1,0 +1,54 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "bundler/inline"
+
+gemfile do
+  source "https://rubygems.org"
+
+  gem "nokogiri"
+end
+
+require "json"
+require "net/http"
+require "pathname"
+
+id = ARGV.first
+
+puts "Running for id #{id}"
+
+# Make sure folder structure exists for us
+root_dir = Pathname.new(".").expand_path
+export_dir = root_dir.join("export")
+export_dir.mkpath
+
+export_tmp_dir = export_dir.join("tmp")
+export_tmp_dir.mkpath
+
+# We need two files, the trip data and the map data, fetch if missing
+trip_file = export_tmp_dir.join("#{id}.json")
+
+unless trip_file.exist?
+  trip_response = Net::HTTP.get_response(URI("https://api.blueboatlog.com/v3/trip/#{id}"))
+  unless trip_response.is_a?(Net::HTTPSuccess)
+    puts "Failed to fetch trip data for id #{id}: #{trip_response.code} #{trip_response.message}"
+    exit 1
+  end
+
+  trip_file.open("w+") do |f|
+    f.write trip_response.body
+  end
+end
+
+map_file = export_tmp_dir.join("#{id}-map.json")
+unless map_file.exist?
+  map_response = Net::HTTP.get_response(URI("https://api.blueboatlog.com/v3/trip/#{id}/map"))
+  unless map_response.is_a?(Net::HTTPSuccess)
+    puts "Failed to fetch map data for id #{id}: #{map_response.code} #{map_response.message}"
+    exit 1
+  end
+
+  map_file.open("w+") do |f|
+    f.write map_response.body
+  end
+end
