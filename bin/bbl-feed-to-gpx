@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+[[ "$TRACE" ]] && set -o xtrace
+set -o errexit
+set -o nounset
+set -o pipefail
+set -o noclobber
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "jq is not installed. Please install jq."
+  exit 1
+fi
+
+while read -r id; do
+  echo "Processing ID: ${id}"
+  ./bin/bbl-to-gpx "${id}"
+done < <(jq -r '.[].id' < /dev/stdin)
