@@ -9,9 +9,11 @@ gemfile do
   gem "nokogiri"
 end
 
+require "erb"
 require "json"
 require "net/http"
 require "pathname"
+require "time"
 
 id = ARGV.first
 
@@ -52,3 +54,48 @@ unless map_file.exist?
     f.write map_response.body
   end
 end
+
+trip_data = JSON.load_file(trip_file.to_s)
+map_data = JSON.load_file(map_file.to_s)
+
+doc = Nokogiri::XML::Builder.new(encoding: "UTF-8") do |xml|
+  xml.gpx(xmlns: "http://www.topografix.com/GPX/1/1", version: "1.1", creator: "Navionics Boating App") do |gpx|
+    gpx.metadata do |metadata|
+      metadata.link(href: "http://www.navionics.com")
+    end
+
+    gpx.trk do |trk|
+      trk.name trip_data.fetch("title")
+      trk.trkseg do |trkseg|
+        map_data.fetch("route")&.each do |wp|
+          # {"x":20.690923,"y":38.449604,"time":"2024-07-27T08:18:36.893Z"}
+
+          trkseg.trkpt(lat: wp.fetch("y"), lon: wp.fetch("x")) do |trkpt|
+            trkpt.ele 1 # Assume elevation of 1 from sea level
+            trkpt.time wp.fetch("time")
+          end
+        end
+
+        trkseg.extensions do |e|
+          if map_data["route"]&.first
+            e.navionics_start_time map_data.fetch("route").first.fetch("time")
+            e.navionics_end_time map_data.fetch("route").last.fetch("time")
+          end
+        end
+      end
+    end
+  end
+end
+
+filename = "%{date} - %{title} - %{id}.gpx" % {
+  date: Time.parse(trip_data.fetch("startDate")).to_date.to_s,
+  id: id,
+  title: trip_data.fetch("title").downcase.gsub(/\W+/, "_").gsub(/_+/, "_")
+}
+
+export_file = export_dir.join(filename)
+export_file.open("w+") do |f|
+  f.write doc.to_xml
+end
+
+puts "Completed t'id #{id} into #{export_file.basename}"
